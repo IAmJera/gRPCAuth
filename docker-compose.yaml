@@ -20,7 +20,7 @@ services:
       default:
         ipv4_address: 172.20.0.3
 
-  storage:
+  server:
     container_name: gRPCAuth
     build: .
     restart: unless-stopped

@@ -13,14 +13,14 @@ import (
 	"time"
 )
 
-// GRPCServer struct ...
+// GRPCServer is the instance of AuthServer interface
 type GRPCServer struct {
 	api.UnimplementedAuthServer
 }
 
 var storages = storage.InitStorages()
 
-// AddUser add user to database or returns error
+// AddUser adds the user to the database or returns error
 func (s *GRPCServer) AddUser(_ context.Context, user *api.User) (*api.Response, error) {
 	query := "INSERT INTO " + os.Getenv("POSTGRES_DB") + " (login, password) VALUES ($1, $2)"
 	if _, err := storages.PSQL.Query(query, user.Login, user.Password); err != nil {
@@ -37,7 +37,7 @@ func (s *GRPCServer) AddUser(_ context.Context, user *api.User) (*api.Response, 
 	return &api.Response{}, err
 }
 
-// SignIn returns token of user of error
+// SignIn returns token of the user of error
 func (s *GRPCServer) SignIn(_ context.Context, user *api.User) (*api.Token, error) {
 	exist, sameHash := storage.Exist(storages, user)
 	if !exist {

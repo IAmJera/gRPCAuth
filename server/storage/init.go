@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// Storage defines the structure of storages
 type Storage struct {
 	Cache *memcache.Client
 	PSQL  *sql.DB
@@ -25,12 +26,12 @@ func InitStorages() *Storage {
 		log.Fatal(err)
 	}
 
-	exist, err := TableExist(store.PSQL)
+	exist, err := tableExist(store.PSQL)
 	if err != nil {
 		log.Panicf("InitStorages:TableExist: %s", err)
 	}
 	if !exist {
-		if err = CreateTable(store.PSQL); err != nil {
+		if err = createTable(store.PSQL); err != nil {
 			log.Panicf("InitStorages:CreateTable: %s", err)
 		}
 	}
@@ -60,7 +61,7 @@ func initPSQL() (*sql.DB, error) {
 	return db, err
 }
 
-func TableExist(db *sql.DB) (bool, error) {
+func tableExist(db *sql.DB) (bool, error) {
 	if _, err := db.Query("SELECT * FROM " + os.Getenv("POSTGRES_DB") + ";"); err != nil {
 		if strings.Contains(err.Error(), "pq: relation \"users\" does not exist") {
 			return false, nil
@@ -71,7 +72,7 @@ func TableExist(db *sql.DB) (bool, error) {
 	return true, nil
 }
 
-func CreateTable(db *sql.DB) error {
+func createTable(db *sql.DB) error {
 	query := "CREATE TABLE " + os.Getenv("POSTGRES_DB") +
 		" ( login VARCHAR(30) UNIQUE NOT NULL, password VARCHAR (64) NOT NULL);"
 	if _, err := db.Query(query); err != nil {

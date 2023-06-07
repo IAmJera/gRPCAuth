@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// User defines the user structure
 type User struct {
 	jwt.StandardClaims
 	Login    string
@@ -16,6 +17,7 @@ type User struct {
 	Role     string
 }
 
+// Exist checks if the user exists and if the password hashes match
 func Exist(storages *Storage, user *api.User) (bool, bool) { //exist, sameHash
 	passwd, err := getUser(storages, user.Login)
 	if err != nil {
