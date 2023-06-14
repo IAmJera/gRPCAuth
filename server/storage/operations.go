@@ -19,7 +19,7 @@ type User struct {
 
 // Exist checks if the user exists and if the password hashes match
 func Exist(storages *Storage, user *api.User) (bool, bool) { //exist, sameHash
-	passwd, err := getUser(storages, user.Login)
+	passwd, err := getUserPassword(storages, user.Login)
 	if err != nil {
 		return false, false
 	}
@@ -29,7 +29,7 @@ func Exist(storages *Storage, user *api.User) (bool, bool) { //exist, sameHash
 	return true, false
 }
 
-func getUser(storages *Storage, login string) (string, error) {
+func getUserPassword(storages *Storage, login string) (string, error) {
 	passwd, err := getFromCache(storages, login)
 	if err != nil {
 		passwd, err = getFromDB(storages, login)
@@ -39,7 +39,7 @@ func getUser(storages *Storage, login string) (string, error) {
 			}
 			return "", err
 		}
-		if err = storages.Cache.Set(&memcache.Item{Key: login, Value: []byte(passwd)}); err != nil {
+		if err = storages.Cache.Set(&memcache.Item{Key: login, Value: []byte(passwd), Expiration: 3600}); err != nil {
 			log.Printf("getUser:Set: %s", err)
 			return "", err
 		}
@@ -48,14 +48,14 @@ func getUser(storages *Storage, login string) (string, error) {
 }
 
 func getFromCache(storages *Storage, login string) (string, error) {
-	pswrd, err := storages.Cache.Get(login)
+	password, err := storages.Cache.Get(login)
 	if err != nil {
 		if err.Error() != "memcache: cache miss" {
 			log.Printf("getFromCache:%s", err)
 		}
 		return "", err
 	}
-	return string(pswrd.Value), nil
+	return string(password.Value), nil
 }
 
 func getFromDB(storages *Storage, login string) (string, error) {

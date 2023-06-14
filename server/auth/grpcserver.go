@@ -2,14 +2,13 @@ package auth
 
 import (
 	"context"
-	"fmt"
 	"gRPCAuth/api"
 	"gRPCAuth/server/storage"
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/golang-jwt/jwt"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	"log"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -20,40 +19,92 @@ type GRPCServer struct {
 
 var storages = storage.InitStorages()
 
-// AddUser adds the user to the database or returns error
-func (s *GRPCServer) AddUser(_ context.Context, user *api.User) (*api.Response, error) {
-	query := "INSERT INTO " + os.Getenv("POSTGRES_DB") + " (login, password) VALUES ($1, $2)"
-	if _, err := storages.PSQL.Query(query, user.Login, user.Password); err != nil {
-		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"users_login_key\"") {
-			return nil, fmt.Errorf("user already exist")
-		}
-		return &api.Response{}, err
+// UserExist returns error if user does not exist
+func (s *GRPCServer) UserExist(_ context.Context, user *api.User) (*wrapperspb.BoolValue, error) {
+	if exist, _ := storage.Exist(storages, user); exist {
+		return &wrapperspb.BoolValue{Value: true}, nil
 	}
-
-	err := storages.Cache.Set(&memcache.Item{Key: user.Login, Value: []byte(user.Password)})
-	if err != nil {
-		log.Printf("SetUser:Set: %s", err)
-	}
-	return &api.Response{}, err
+	return &wrapperspb.BoolValue{Value: false}, nil
 }
 
-// SignIn returns token of the user of error
-func (s *GRPCServer) SignIn(_ context.Context, user *api.User) (*api.Token, error) {
+// AddUser adds user to the database or returns error
+func (s *GRPCServer) AddUser(_ context.Context, user *api.User) (*wrapperspb.StringValue, error) {
+	time.Sleep(6 * time.Second)
+	if exist, _ := storage.Exist(storages, user); exist {
+		return &wrapperspb.StringValue{Value: "user already exist"}, nil
+	}
+
+	query := "INSERT INTO " + os.Getenv("POSTGRES_DB") + " (login, password) VALUES ($1, $2)"
+	if _, err := storages.PSQL.Query(query, user.Login, user.Password); err != nil {
+		log.Printf("AddUser:Query: %s", err)
+		return &wrapperspb.StringValue{}, err
+	}
+
+	err := storages.Cache.Set(&memcache.Item{Key: user.Login, Value: []byte(user.Password), Expiration: 3600})
+	if err != nil {
+		log.Printf("AddUser:Set: %s", err)
+	}
+	return &wrapperspb.StringValue{}, err
+}
+
+// UpdateUser updates user credentials
+func (s *GRPCServer) UpdateUser(_ context.Context, user *api.User) (*wrapperspb.StringValue, error) {
+	if exist, _ := storage.Exist(storages, user); !exist {
+		return &wrapperspb.StringValue{Value: "user does not exist"}, nil
+	}
+
+	query := "UPDATE " + os.Getenv("POSTGRES_DB") + " SET password = $2 WHERE login = $1"
+	if _, err := storages.PSQL.Query(query, user.Login, user.Password); err != nil {
+		log.Printf("UpdateUser:Query: %s", err)
+		return &wrapperspb.StringValue{}, err
+	}
+
+	err := storages.Cache.Replace(&memcache.Item{Key: user.Login, Value: []byte(user.Password), Expiration: 3600})
+	if err != nil {
+		log.Printf("UpdateUser:Replace: %s", err)
+	}
+	return &wrapperspb.StringValue{}, err
+}
+
+// DelUser removes user from storages
+func (s *GRPCServer) DelUser(_ context.Context, user *api.User) (*wrapperspb.StringValue, error) {
+	if exist, _ := storage.Exist(storages, user); !exist {
+		return &wrapperspb.StringValue{Value: "user does not exist"}, nil
+	}
+
+	query := "DELETE FROM " + os.Getenv("POSTGRES_DB") + " WHERE login = $1"
+	if _, err := storages.PSQL.Query(query, user.Login); err != nil {
+		log.Printf("DelUser:Query: %s", err)
+		return &wrapperspb.StringValue{}, err
+	}
+
+	if err := storages.Cache.Delete(user.Login); err != nil {
+		if err.Error() != "memcache: cache miss" {
+			log.Printf("DelUser:Delete: %s", err)
+			return &wrapperspb.StringValue{}, err
+		}
+	}
+	return &wrapperspb.StringValue{}, nil
+}
+
+// GetToken returns token of the user of error
+func (s *GRPCServer) GetToken(_ context.Context, user *api.User) (*api.Token, error) {
 	exist, sameHash := storage.Exist(storages, user)
 	if !exist {
-		return &api.Token{}, fmt.Errorf("user does not exist")
+		return &api.Token{Error: "user does not exist"}, nil
 	}
 	if sameHash {
-		token, err := getToken(user)
+		token, err := createToken(user)
 		if err != nil {
+			log.Printf("SignIn:getToken: %s", err)
 			return &api.Token{}, err
 		}
 		return &api.Token{Token: token}, nil
 	}
-	return &api.Token{}, fmt.Errorf("incorrect password")
+	return &api.Token{Error: "incorrect password"}, nil
 }
 
-func getToken(user *api.User) (string, error) {
+func createToken(user *api.User) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &storage.User{
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
@@ -62,5 +113,5 @@ func getToken(user *api.User) (string, error) {
 		Login: user.Login,
 		Role:  user.Role,
 	})
-	return token.SignedString([]byte(os.Getenv("SIGNINGKEY")))
+	return token.SignedString([]byte(os.Getenv("SIGNING_KEY")))
 }
