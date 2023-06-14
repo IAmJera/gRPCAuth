@@ -29,7 +29,6 @@ func (s *GRPCServer) UserExist(_ context.Context, user *api.User) (*wrapperspb.B
 
 // AddUser adds user to the database or returns error
 func (s *GRPCServer) AddUser(_ context.Context, user *api.User) (*wrapperspb.StringValue, error) {
-	time.Sleep(6 * time.Second)
 	if exist, _ := storage.Exist(storages, user); exist {
 		return &wrapperspb.StringValue{Value: "user already exist"}, nil
 	}
