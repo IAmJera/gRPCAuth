@@ -3,19 +3,9 @@ package storage
 import (
 	"gRPCAuth/api"
 	"github.com/bradfitz/gomemcache/memcache"
-	"github.com/golang-jwt/jwt"
 	"log"
-	"os"
 	"strings"
 )
-
-// User defines the user structure
-type User struct {
-	jwt.StandardClaims
-	Login    string
-	Password string
-	Role     string
-}
 
 // Exist checks if the user exists and if the password hashes match
 func Exist(storages *Storage, user *api.User) (bool, bool) { //exist, sameHash
@@ -32,7 +22,7 @@ func Exist(storages *Storage, user *api.User) (bool, bool) { //exist, sameHash
 func getUserPassword(storages *Storage, login string) (string, error) {
 	passwd, err := getFromCache(storages, login)
 	if err != nil {
-		passwd, err = getFromDB(storages, login)
+		passwd, err = getFromDB(storages.PSQL, login)
 		if err != nil {
 			if !strings.Contains(err.Error(), "sql: no rows in result set") {
 				log.Printf("getUser:getFromDB: %s", err)
@@ -58,10 +48,10 @@ func getFromCache(storages *Storage, login string) (string, error) {
 	return string(password.Value), nil
 }
 
-func getFromDB(storages *Storage, login string) (string, error) {
+func getFromDB(postgres Postgres, login string) (string, error) {
 	var password string
-	query := "SELECT password FROM " + os.Getenv("POSTGRES_DB") + " WHERE login = $1"
-	err := storages.PSQL.QueryRow(query, login).Scan(&password)
+	query := "SELECT password FROM users WHERE login = $1"
+	err := postgres.QueryRow(query, login).Scan(&password)
 	if err != nil {
 		return "", err
 	}

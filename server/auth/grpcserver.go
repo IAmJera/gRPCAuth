@@ -12,6 +12,14 @@ import (
 	"time"
 )
 
+// User defines the user structure
+type User struct {
+	jwt.StandardClaims
+	Login    string
+	Password string
+	Role     string
+}
+
 // GRPCServer is the instance of AuthServer interface
 type GRPCServer struct {
 	api.UnimplementedAuthServer
@@ -33,7 +41,7 @@ func (s *GRPCServer) AddUser(_ context.Context, user *api.User) (*wrapperspb.Str
 		return &wrapperspb.StringValue{Value: "user already exist"}, nil
 	}
 
-	query := "INSERT INTO " + os.Getenv("POSTGRES_DB") + " (login, password) VALUES ($1, $2)"
+	query := "INSERT INTO users (login, password) VALUES ($1, $2)"
 	if _, err := storages.PSQL.Query(query, user.Login, user.Password); err != nil {
 		log.Printf("AddUser:Query: %s", err)
 		return &wrapperspb.StringValue{}, err
@@ -52,7 +60,7 @@ func (s *GRPCServer) UpdateUser(_ context.Context, user *api.User) (*wrapperspb.
 		return &wrapperspb.StringValue{Value: "user does not exist"}, nil
 	}
 
-	query := "UPDATE " + os.Getenv("POSTGRES_DB") + " SET password = $2 WHERE login = $1"
+	query := "UPDATE users SET password = $2 WHERE login = $1"
 	if _, err := storages.PSQL.Query(query, user.Login, user.Password); err != nil {
 		log.Printf("UpdateUser:Query: %s", err)
 		return &wrapperspb.StringValue{}, err
@@ -71,7 +79,7 @@ func (s *GRPCServer) DelUser(_ context.Context, user *api.User) (*wrapperspb.Str
 		return &wrapperspb.StringValue{Value: "user does not exist"}, nil
 	}
 
-	query := "DELETE FROM " + os.Getenv("POSTGRES_DB") + " WHERE login = $1"
+	query := "DELETE FROM users WHERE login = $1"
 	if _, err := storages.PSQL.Query(query, user.Login); err != nil {
 		log.Printf("DelUser:Query: %s", err)
 		return &wrapperspb.StringValue{}, err
@@ -104,7 +112,7 @@ func (s *GRPCServer) GetToken(_ context.Context, user *api.User) (*api.Token, er
 }
 
 func createToken(user *api.User) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &storage.User{
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &User{
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
 			IssuedAt:  time.Now().Unix(),
