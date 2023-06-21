@@ -35,7 +35,6 @@ services:
       PSQL_ADDRESS: '172.20.0.2'
       PSQL_PORT: '5432'
       CACHE_ADDRESS: '172.20.0.3:11211'
-      BASEDIR: "/data/"
 #    volumes:
 #      - ./storage/data:/data
 

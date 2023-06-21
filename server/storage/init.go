@@ -53,8 +53,9 @@ func initPSQL() (*sql.DB, error) {
 	port := os.Getenv("PSQL_PORT")
 	login := os.Getenv("POSTGRES_USER")
 	passwd := os.Getenv("POSTGRES_PASSWORD")
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=users sslmode=disable",
-		addr, port, login, passwd)
+	database := os.Getenv("POSTGRES_DB")
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		addr, port, login, passwd, database)
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
