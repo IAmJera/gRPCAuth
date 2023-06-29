@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Exist checks if the user exists and if the password hashes match
+// Exist checks if user exist in the database or returns error
 func Exist(storages *Storage, user *api.User) (bool, bool) { //exist, sameHash
 	passwd, err := getUserPassword(storages, user.Login)
 	if err != nil {

@@ -27,13 +27,13 @@ type Postgres interface {
 	QueryRow(query string, args ...any) *sql.Row
 }
 
-// Storage defines the structure of storages
+// Storage defines the storage structure
 type Storage struct {
 	Cache Cache
 	PSQL  Postgres
 }
 
-// InitStorages initializes all storages and returns the structure with them
+// InitStorages
 func InitStorages() *Storage {
 	store := Storage{}
 	store.Cache = memcache.New(os.Getenv("CACHE_ADDRESS"))

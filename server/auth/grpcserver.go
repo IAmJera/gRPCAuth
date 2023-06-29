@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// User defines the user structure
+// User defines the user struct
 type User struct {
 	jwt.StandardClaims
 	Login    string
@@ -20,14 +20,14 @@ type User struct {
 	Role     string
 }
 
-// GRPCServer is the instance of AuthServer interface
+// GRPCServer defines the gRPC server
 type GRPCServer struct {
 	api.UnimplementedAuthServer
 }
 
 var storages = storage.InitStorages()
 
-// UserExist returns error if user does not exist
+// UserExist checks if user exist in the database or returns error
 func (s *GRPCServer) UserExist(_ context.Context, user *api.User) (*wrapperspb.BoolValue, error) {
 	if exist, _ := storage.Exist(storages, user); exist {
 		return &wrapperspb.BoolValue{Value: true}, nil
@@ -54,7 +54,7 @@ func (s *GRPCServer) AddUser(_ context.Context, user *api.User) (*wrapperspb.Str
 	return &wrapperspb.StringValue{}, err
 }
 
-// UpdateUser updates user credentials
+// UpdateUser updates user password in the database or returns error
 func (s *GRPCServer) UpdateUser(_ context.Context, user *api.User) (*wrapperspb.StringValue, error) {
 	if exist, _ := storage.Exist(storages, user); !exist {
 		return &wrapperspb.StringValue{Value: "user does not exist"}, nil
@@ -94,7 +94,7 @@ func (s *GRPCServer) DelUser(_ context.Context, user *api.User) (*wrapperspb.Str
 	return &wrapperspb.StringValue{}, nil
 }
 
-// GetToken returns token of the user of error
+// GetToken returns token if user exist and password is correct
 func (s *GRPCServer) GetToken(_ context.Context, user *api.User) (*api.Token, error) {
 	exist, sameHash := storage.Exist(storages, user)
 	if !exist {

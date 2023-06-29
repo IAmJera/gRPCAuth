@@ -42,6 +42,7 @@ func (c *testCache) Delete(_ string) error {
 	return nil
 }
 
+// TestExist tests Exist function
 func TestExist(t *testing.T) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
